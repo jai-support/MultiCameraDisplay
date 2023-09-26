@@ -11,8 +11,6 @@
 """
 
 # from concurrent.futures import thread
-
-import time
 import eBUS as eb
 import PvSampleUtils as psu
 import cv2

@@ -1,7 +1,4 @@
 ## Calculate Packet delay:
-from numpy import minimum
-
-
 packetSize = 9000
 networkSpeed = 1
 
