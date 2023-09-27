@@ -7,7 +7,7 @@
 
  *****************************************************************************
 
- This sample shows how to receive images from a multi-source device using PvPipeline.
+ This sample shows how to receive images from a multiple cameras
 """
 
 # from concurrent.futures import thread
