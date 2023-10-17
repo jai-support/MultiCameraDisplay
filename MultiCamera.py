@@ -98,9 +98,10 @@ class Source:
         #### START OF CUSTOM SETTINGS HERE.
         #### THESE SETTINGS ARE APPLIED TO ALL CONNECTED CAMERAS
 
-        # Set Packet Delay
-        self._device.GetParameters().SetIntegerValue("GevSCPD", 144224)
-        print("\tPacket Delay:", "144224")
+        # Set Packet Delay if GEV device
+        if isinstance(self._device, eb.PvDeviceGEV):
+             self._device.GetParameters().SetIntegerValue("GevSCPD", 144224)
+             print("\tPacket Delay:", "144224")
 
         # Set Pixel format to 8 bits
         result, pixel_format = self._device.GetParameters().GetEnumValueString(
