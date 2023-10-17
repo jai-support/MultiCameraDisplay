@@ -202,6 +202,9 @@ class Source:
                     cv2.waitKey(1)
 
                 self._pipeline.ReleaseBuffer(buffer)
+            else:
+                print("camera", str(self._source), "failed to produce an image")
+                break
 
     def SelectSource(self, stack):
         """changes the selected source.
