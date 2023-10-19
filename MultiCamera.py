@@ -70,29 +70,30 @@ class Source:
         self.SelectSource(stack)
 
         # Explicitly check for GEV or U3V types, required to configure channels
-        if isinstance(self._device, eb.PvDeviceGEV):
-            self._stream = eb.PvStreamGEV()
-            if self._stream.Open(self._connection_id, 0, 0).IsFailure():
-                print("\tError opening ", str(self._source), " to GigE Vision device")
-                return False
+        #!TODO support U3V
+        # if isinstance(self._device, eb.PvDeviceGEV):
+        self._stream = eb.PvStreamGEV()
+        if self._stream.Open(self._connection_id, 0, 0).IsFailure():
+            print("\tError opening ", str(self._source), " to GigE Vision device")
+            return False
 
-            local_ip = self._stream.GetLocalIPAddress()
-            local_port = self._stream.GetLocalPort()
+        local_ip = self._stream.GetLocalIPAddress()
+        local_port = self._stream.GetLocalPort()
 
-            print(
-                "\tSetting source destination on device (channel",
-                0,
-                ") to",
-                local_ip,
-                "port",
-                local_port,
-            )
-            self._device.SetStreamDestination(local_ip, local_port, 0)
-        elif isinstance(self._device, eb.PvDeviceU3V):
-            self._stream = eb.PvStreamU3V
-            if self._stream.Open(self._connection_id, 0).IsFailure():
-                print("\tError opening stream to USB3 Vision Device")
-                return False
+        print(
+            "\tSetting source destination on device (channel",
+            0,
+            ") to",
+            local_ip,
+            "port",
+            local_port,
+        )
+        self._device.SetStreamDestination(local_ip, local_port, 0)
+        # elif isinstance(self._device, eb.PvDeviceU3V):
+        #     self._stream = eb.PvStreamU3V
+        #     if self._stream.Open(self._connection_id, 0).IsFailure():
+        #         print("\tError opening stream to USB3 Vision Device")
+        #         return False
 
         ####################################################################################
         #### START OF CUSTOM SETTINGS HERE.
