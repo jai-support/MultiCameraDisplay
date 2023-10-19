@@ -9,4 +9,4 @@ def CalculatePacketDelay(camerasConnected):
     transmissionTimePerPacket = withEthHeaders * 8 / networkSpeed
 
     minimumPacketDelay = camerasDelayFactor * transmissionTimePerPacket
-    return minimumPacketDelay
+    return int(minimumPacketDelay)

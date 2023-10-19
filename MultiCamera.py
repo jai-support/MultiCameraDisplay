@@ -108,8 +108,8 @@ class Camera:
         #### THESE SETTINGS ARE APPLIED TO ALL CONNECTED CAMERAS
 
         # Set Packet Delay
-        self._device.GetParameters().SetIntegerValue("GevSCPD", int(self._packet_delay))
-        print("\t\tPacket Delay: ", int(self._packet_delay), ".", sep="")
+        self._device.GetParameters().SetIntegerValue("GevSCPD", self._packet_delay)
+        print("\t\tPacket Delay: ", self._packet_delay, ".", sep="")
 
         # Set Pixel format to 8 bits
         result, pixel_format = self._device.GetParameters().GetEnumValueString(
