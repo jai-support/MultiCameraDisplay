@@ -8,6 +8,8 @@
  *****************************************************************************
 
  This sample shows how to receive images from a multiple cameras
+
+ Don't use this code in production, it's Proof of Concept
 """
 
 # from concurrent.futures import thread
@@ -74,10 +76,12 @@ class Camera:
         result = self._stream.Open(self._connection_id, 0, 0)
         if result.IsFailure():
             print(
-                "\tError opening ",
+                "\t\tError opening ",
                 str(self._connection_id.GetDisplayID()),
                 " to GigE Vision device. Error: ",
                 result.GetDescription(),
+                ".",
+                sep="",
             )
             return False
 
@@ -85,12 +89,12 @@ class Camera:
         local_port = self._stream.GetLocalPort()
 
         print(
-            "\tSetting source destination on device (channel",
-            0,
-            ") to",
+            "\t\tSetting Camera on ",
             local_ip,
-            "port",
+            " to port ",
             local_port,
+            ".",
+            sep="",
         )
         self._device.SetStreamDestination(local_ip, local_port, 0)
         # elif isinstance(self._device, eb.PvDeviceU3V):
@@ -103,16 +107,15 @@ class Camera:
         #### START OF CUSTOM SETTINGS HERE.
         #### THESE SETTINGS ARE APPLIED TO ALL CONNECTED CAMERAS
 
-        # Set Packet Delay if GEV device
-        if isinstance(self._device, eb.PvDeviceGEV):
-            self._device.GetParameters().SetIntegerValue("GevSCPD", 144224)
-            print("\tPacket Delay:", "144224")
+        # Set Packet Delay
+        self._device.GetParameters().SetIntegerValue("GevSCPD", int(self._packet_delay))
+        print("\t\tPacket Delay: ", int(self._packet_delay), ".", sep="")
 
         # Set Pixel format to 8 bits
         result, pixel_format = self._device.GetParameters().GetEnumValueString(
             "PixelFormat"
         )
-        print("\tPixel Format:", pixel_format)
+        print("\t\tPixel Format: ", pixel_format, ".", sep="")
 
         self._pixel_format = re.search(r"\D+", pixel_format).group()
         self._channel_size = pixel_format[len(self._pixel_format) : len(pixel_format)]
@@ -131,13 +134,13 @@ class Camera:
         self._pipeline = eb.PvPipeline(self._stream)
         self._pipeline.SetBufferSize(payload_size)
         self._pipeline.SetBufferCount(self._BUFFER_COUNT)
-        print("\tStarting pipeline thread")
+        print("\t\tStarting pipeline thread.")
         self._pipeline.Start()
         return True
 
     def Close(self):
         """close the stream to a source"""
-        print("Closing source ", self._connection_id.GetDisplayID())
+        print("Closing source ", self._connection_id.GetDisplayID(), ".", sep="")
 
         # Stopping pipeline thread
         self._pipeline.Stop()
@@ -147,7 +150,7 @@ class Camera:
 
     def StartAcquisition(self):
         """Starts acquisition of a source"""
-        print("Start acquisition", self._connection_id.GetDisplayID())
+        print("Start acquisition ", self._connection_id.GetDisplayID(), ".", sep="")
         # stack = eb.PvGenStateStack(self._device.GetParameters())
         # self.SelectSource(stack)
         self._running = True
@@ -156,7 +159,7 @@ class Camera:
 
     def StopAcquisition(self):
         """Stops acquisition of a source"""
-        print("Stop acquisition ", self._connection_id.GetDisplayID())
+        print("Stop acquisition ", self._connection_id.GetDisplayID(), ".", sep="")
         # stack = eb.PvGenStateStack(self._device.GetParameters())
         # self.SelectSource(stack)
         self._running = False
@@ -184,8 +187,10 @@ class Camera:
                 # print(image.GetPixelType())
                 if int(self._channel_size) != 8:
                     print(
-                        "conversion need to display on source",
+                        "conversion need to display on source ",
                         self._connection_id.GetDisplayID(),
+                        ".",
+                        sep="",
                     )
                 else:
                     if image.GetPixelType() == eb.PvPixelBayerBG8:
@@ -212,9 +217,10 @@ class Camera:
                 self._pipeline.ReleaseBuffer(buffer)
             else:
                 print(
-                    "camera",
+                    "camera ",
                     str(self._connection_id.GetDisplayID()),
-                    "failed to produce an image",
+                    " failed to produce an image.",
+                    sep="",
                 )
                 break
 
@@ -252,44 +258,51 @@ def AcquireImages():
         lInterface = lSystem.GetInterface(i)
         for j in range(lInterface.GetDeviceCount()):
             lDI = lInterface.GetDeviceInfo(j)
+            print("Found:\t\t", lDI.GetDisplayID(), ".", sep="")
             result, device = eb.PvDevice.CreateAndConnect(lDI)
             if result.IsFailure():
-                print("Unable to connect to device.")
+                print("\t\tUnable to connect to ", lDI.GetDisplayID(), ".", sep="")
             else:
                 if not isinstance(device, eb.PvDeviceGEV):
                     print(
-                        "The selected device is not currently supported by this sample."
+                        "\t\tThe selected device is not currently supported by this sample."
                     )
                 else:
                     lDIVector.append(lDI)
                     deviceVector.append(device)
-                    print(f"added [{len(lDIVector) - 1}]\t{lDI.GetDisplayID()}")
+                    # print(f"added [{len(lDIVector) - 1}]\t{lDI.GetDisplayID()}")
 
     if len(lDIVector) == 0:
-        print("No devices found, terminating Code")
+        print("No devices found, terminating Code.")
         return False
 
     packetDelay = config.CalculatePacketDelay(len(lDIVector))
 
-    print("Successfully connected to devices")
+    print(
+        "\nSuccessfully connected to ",
+        "a device" if len(lDIVector) == 1 else "devices",
+        ".",
+        sep="",
+    )
     sources = []
     for i in range(len(lDIVector)):
         cam = Camera(deviceVector[i], lDIVector[i], packetDelay)
+        print("Opening:\t", lDIVector[i].GetDisplayID(), ".", sep="")
         if cam.Open():
             sources.append(cam)
     if sources == []:
-        print("couldn't open any cameras. Terminate code ")
+        print("Couldn't open any cameras. Terminate code. ")
         return False
 
     software_trigger = Barrier(len(lDIVector))
 
-    print("\nstaring Acquisition")
+    print("\nStaring Acquisition.")
     for cam in sources:
         cam.StartAcquisition()
         cam._thread = Thread(target=cam.run, args=[software_trigger])
         cam._thread.start()
 
-    print("\n<press a key to stop streaming>")
+    print("\n<Press a key to stop streaming>")
     kb = psu.PvKb()
     kb.start()
     while not kb.is_stopping():
@@ -306,6 +319,6 @@ def AcquireImages():
     return True
 
 
-print("MultiSource sample")
+print("Multi Camera Display sample")
 print("Acquire images from a GigE Vision device")
 AcquireImages()
