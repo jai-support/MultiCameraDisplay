@@ -78,7 +78,7 @@ class Camera:
             print(
                 "\t\tError opening ",
                 str(self._connection_id.GetDisplayID()),
-                " to GigE Vision device. Error: ",
+                "\n\t\tError: ",
                 result.GetDescription(),
                 ".",
                 sep="",
@@ -151,8 +151,6 @@ class Camera:
     def StartAcquisition(self):
         """Starts acquisition of a source"""
         print("Start acquisition ", self._connection_id.GetDisplayID(), ".", sep="")
-        # stack = eb.PvGenStateStack(self._device.GetParameters())
-        # self.SelectSource(stack)
         self._running = True
 
         self._device.StreamEnable()
@@ -160,8 +158,6 @@ class Camera:
     def StopAcquisition(self):
         """Stops acquisition of a source"""
         print("Stop acquisition ", self._connection_id.GetDisplayID(), ".", sep="")
-        # stack = eb.PvGenStateStack(self._device.GetParameters())
-        # self.SelectSource(stack)
         self._running = False
 
         # Sending AcquisitionStop command to device
@@ -184,15 +180,8 @@ class Camera:
                 image = buffer.GetImage()
                 image_data = image.GetDataPointer()
 
-                # print(image.GetPixelType())
-                if int(self._channel_size) != 8:
-                    print(
-                        "conversion need to display on source ",
-                        self._connection_id.GetDisplayID(),
-                        ".",
-                        sep="",
-                    )
-                else:
+                # Check if conversion is need
+                if not image.GetPixelType() == eb.PvPixelMono8:
                     if image.GetPixelType() == eb.PvPixelBayerBG8:
                         image_data = cv2.cvtColor(image_data, cv2.COLOR_BayerBG2RGB)
                     elif image.GetPixelType() == eb.PvPixelBayerGB8:
@@ -203,16 +192,23 @@ class Camera:
                         image_data = cv2.cvtColor(image_data, cv2.COLOR_BayerRG2RGB)
                     elif image.GetPixelType() == eb.PvPixelRGB8:
                         image_data = cv2.cvtColor(image_data, cv2.COLOR_RGB2BGR)
-                    # elif image.GetPixelType() == eb.PvPixelMono8:
-                    # do nothin
 
                 # Resize image
                 if image_data.size != 0:
+                    # Resize image
                     image_data = cv2.resize(
                         image_data, (800, 600), interpolation=cv2.INTER_LINEAR
                     )  # Display image
                     cv2.imshow(str(self._connection_id.GetDisplayID()), image_data)
                     cv2.waitKey(1)
+                else:
+                    print(
+                        "camera ",
+                        str(self._connection_id.GetDisplayID()),
+                        " got image size = 0.",
+                        sep="",
+                    )
+                    break
 
                 self._pipeline.ReleaseBuffer(buffer)
             else:
@@ -223,21 +219,6 @@ class Camera:
                     sep="",
                 )
                 break
-
-    def SelectSource(self, stack):
-        """changes the selected source.
-        This needs to run before any source interfacing. EX.
-        Before we can send AcquisitionStop to a source, we need to tell the camera,
-        we want to make changes to this source otherwise we can end up making changes
-        to a difference source
-
-        Args:
-            stack (PvGenStateStack):
-            Performs changes to a GenICam node map, tracks them and restores the
-            previous state on destruction.
-        """
-        if self._source:
-            stack.SetEnumValue("SourceSelector", self._source)
 
 
 def AcquireImages():
@@ -261,7 +242,14 @@ def AcquireImages():
             print("Found:\t\t", lDI.GetDisplayID(), ".", sep="")
             result, device = eb.PvDevice.CreateAndConnect(lDI)
             if result.IsFailure():
-                print("\t\tUnable to connect to ", lDI.GetDisplayID(), ".", sep="")
+                print(
+                    "\t\tUnable to connect to ",
+                    lDI.GetDisplayID(),
+                    "\n\t\tError: ",
+                    eb.PvResultCode(result.GetCode()),
+                    ".",
+                    sep="",
+                )
             else:
                 if not isinstance(device, eb.PvDeviceGEV):
                     print(
@@ -306,6 +294,12 @@ def AcquireImages():
     kb = psu.PvKb()
     kb.start()
     while not kb.is_stopping():
+        active_thread_count = 0
+        for cam_thread in sources:
+            if cam_thread._thread.is_alive():
+                active_thread_count += 1
+        if active_thread_count == 0:
+            break
         if kb.kbhit():
             kb.getch()
             break
