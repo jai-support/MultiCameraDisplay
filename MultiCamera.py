@@ -20,7 +20,7 @@ from threading import Barrier, Thread
 import config
 
 
-class Source:
+class Camera:
     """Class to work with the image sensors (sources) on the camera
     Returns:
         Object: use it to manage a source
@@ -32,13 +32,12 @@ class Source:
     _stream = None
     _pipeline = None
     _connection_id = None
-    _source = None
     _thread = None
     _packet_delay = None
     _pixel_format = None
     _channel_size = None
 
-    def __init__(self, device, connection_id, source, packet_delay):
+    def __init__(self, device, connection_id, packet_delay):
         """Class to stream from source on device to a OpenCV frame
 
         Args:
@@ -55,7 +54,6 @@ class Source:
         self._running = False
         self._device = device
         self._connection_id = connection_id
-        self._source = source
         self._thread = None
         self._packet_delay = packet_delay
 
@@ -66,15 +64,21 @@ class Source:
             boolean: Whether is was successful or not
         """
         # Select this source
-        stack = eb.PvGenStateStack(self._device.GetParameters())
-        self.SelectSource(stack)
+        # stack = eb.PvGenStateStack(self._device.GetParameters())
+        # self.SelectSource(stack)
 
         # Explicitly check for GEV or U3V types, required to configure channels
         #!TODO support U3V
         # if isinstance(self._device, eb.PvDeviceGEV):
         self._stream = eb.PvStreamGEV()
-        if self._stream.Open(self._connection_id, 0, 0).IsFailure():
-            print("\tError opening ", str(self._source), " to GigE Vision device")
+        result = self._stream.Open(self._connection_id, 0, 0)
+        if result.IsFailure():
+            print(
+                "\tError opening ",
+                str(self._connection_id.GetDisplayID()),
+                " to GigE Vision device. Error: ",
+                result.GetDescription(),
+            )
             return False
 
         local_ip = self._stream.GetLocalIPAddress()
@@ -101,8 +105,8 @@ class Source:
 
         # Set Packet Delay if GEV device
         if isinstance(self._device, eb.PvDeviceGEV):
-             self._device.GetParameters().SetIntegerValue("GevSCPD", 144224)
-             print("\tPacket Delay:", "144224")
+            self._device.GetParameters().SetIntegerValue("GevSCPD", 144224)
+            print("\tPacket Delay:", "144224")
 
         # Set Pixel format to 8 bits
         result, pixel_format = self._device.GetParameters().GetEnumValueString(
@@ -133,7 +137,7 @@ class Source:
 
     def Close(self):
         """close the stream to a source"""
-        print("Closing source ", self._source)
+        print("Closing source ", self._connection_id.GetDisplayID())
 
         # Stopping pipeline thread
         self._pipeline.Stop()
@@ -143,18 +147,18 @@ class Source:
 
     def StartAcquisition(self):
         """Starts acquisition of a source"""
-        print("Start acquisition", self._source)
-        stack = eb.PvGenStateStack(self._device.GetParameters())
-        self.SelectSource(stack)
+        print("Start acquisition", self._connection_id.GetDisplayID())
+        # stack = eb.PvGenStateStack(self._device.GetParameters())
+        # self.SelectSource(stack)
         self._running = True
 
         self._device.StreamEnable()
 
     def StopAcquisition(self):
         """Stops acquisition of a source"""
-        print("Stop acquisition ", self._source)
-        stack = eb.PvGenStateStack(self._device.GetParameters())
-        self.SelectSource(stack)
+        print("Stop acquisition ", self._connection_id.GetDisplayID())
+        # stack = eb.PvGenStateStack(self._device.GetParameters())
+        # self.SelectSource(stack)
         self._running = False
 
         # Sending AcquisitionStop command to device
@@ -179,7 +183,10 @@ class Source:
 
                 # print(image.GetPixelType())
                 if int(self._channel_size) != 8:
-                    print("conversion need to display on source", self._source)
+                    print(
+                        "conversion need to display on source",
+                        self._connection_id.GetDisplayID(),
+                    )
                 else:
                     if image.GetPixelType() == eb.PvPixelBayerBG8:
                         image_data = cv2.cvtColor(image_data, cv2.COLOR_BayerBG2RGB)
@@ -199,12 +206,16 @@ class Source:
                     image_data = cv2.resize(
                         image_data, (800, 600), interpolation=cv2.INTER_LINEAR
                     )  # Display image
-                    cv2.imshow(str(self._source), image_data)
+                    cv2.imshow(str(self._connection_id.GetDisplayID()), image_data)
                     cv2.waitKey(1)
 
                 self._pipeline.ReleaseBuffer(buffer)
             else:
-                print("camera", str(self._source), "failed to produce an image")
+                print(
+                    "camera",
+                    str(self._connection_id.GetDisplayID()),
+                    "failed to produce an image",
+                )
                 break
 
     def SelectSource(self, stack):
@@ -263,17 +274,20 @@ def AcquireImages():
     print("Successfully connected to devices")
     sources = []
     for i in range(len(lDIVector)):
-        source = Source(deviceVector[i], lDIVector[i], i, packetDelay)
-        if source.Open():
-            sources.append(source)
+        cam = Camera(deviceVector[i], lDIVector[i], packetDelay)
+        if cam.Open():
+            sources.append(cam)
+    if sources == []:
+        print("couldn't open any cameras. Terminate code ")
+        return False
 
     software_trigger = Barrier(len(lDIVector))
 
     print("\nstaring Acquisition")
-    for source in sources:
-        source.StartAcquisition()
-        source._thread = Thread(target=source.run, args=[software_trigger])
-        source._thread.start()
+    for cam in sources:
+        cam.StartAcquisition()
+        cam._thread = Thread(target=cam.run, args=[software_trigger])
+        cam._thread.start()
 
     print("\n<press a key to stop streaming>")
     kb = psu.PvKb()
