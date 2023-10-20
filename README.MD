@@ -1,7 +1,7 @@
 
 
 # MultiCamera.py
-This application is developed on windows 11 and hasn't been tested for linux. but it should be really easy to follow along for linux user who uses python on linux. 
+This application is developed on windows 11 and have been tested on ubuntu 22.04.
 There is no certainty that this code will execute without problems. Since computers have different specs. 
 
 ## Packet Delay and Threading
@@ -37,7 +37,7 @@ Download the correct version of eBUS python from our website: https://www.jai.co
 
 Then install it in the terminal that you activated the venv
 ```powershell 
-pip install .\ebus_python-<EBUS VERSION>.whl
+pip install .\ebus_python-<EBUS VERSION>.whl opencv_python
 pip install -r requirements.txt
 ```
 
@@ -53,10 +53,29 @@ python MultiCamera.py
 
 ## Linux
 
-### Setup Env
-
 ### Install eBUS
+Download the correct version of eBUS python from our website: https://www.jai.com/support-software/jai-software
+
+```bash
+dpkg -i eBUS_Python_<EBUS_VERSION>.deb
+```
+
+### Setup Env
+```bash
+pip install virtualenv
+python -m venv env
+chmod 755 env/bin/activate
+source env/bin/activate
+```
+
+## install requirements
+```bash
+sudo apt install python3-opencv
+pip install -r requirements.txt
+```
 
 
 ### Run the Code
-
+```bash
+python MultiCamera.py
+```
