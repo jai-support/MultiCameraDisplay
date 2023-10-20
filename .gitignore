@@ -3,3 +3,6 @@ __*
 env*
 ebus_python-6.3.0*
 .vscode
+pip_test_env
+MultiCameraDisplay
+premake5.lua
