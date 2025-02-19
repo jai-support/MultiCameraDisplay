@@ -19,7 +19,7 @@ import cv2
 import re
 from threading import Barrier, Thread
 
-import config
+import utils
 
 
 class Camera:
@@ -264,7 +264,7 @@ def AcquireImages():
         print("No devices found, terminating Code.")
         return False
 
-    packetDelay = config.CalculatePacketDelay(len(lDIVector))
+    packetDelay = utils.CalculatePacketDelay(len(lDIVector))
 
     print(
         "\nSuccessfully connected to ",
